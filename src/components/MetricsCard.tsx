@@ -1,15 +1,16 @@
 import React from 'react';
-import { DivideIcon as LucideIcon, TrendingUp, TrendingDown } from 'lucide-react';
+import { LucideIcon, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface MetricsCardProps {
   title: string;
-  value: number;
+  value: number | string;
   icon: LucideIcon;
   trend?: {
     value: number;
     isPositive: boolean;
   };
   glowColor: 'cyan' | 'blue' | 'emerald' | 'amber' | 'purple';
+  subtitle?: string;
 }
 
 const glowStyles = {
@@ -28,7 +29,7 @@ const iconColors = {
   purple: 'text-purple-400',
 };
 
-export function MetricsCard({ title, value, icon: Icon, trend, glowColor }: MetricsCardProps) {
+export function MetricsCard({ title, value, icon: Icon, trend, glowColor, subtitle }: MetricsCardProps) {
   return (
     <div className={`p-6 bg-gradient-to-br ${glowStyles[glowColor]} border rounded-xl shadow-lg hover:shadow-xl transition-all duration-300`}>
       <div className="flex items-center justify-between mb-4">
@@ -50,6 +51,9 @@ export function MetricsCard({ title, value, icon: Icon, trend, glowColor }: Metr
       <div className="space-y-1">
         <h3 className="text-2xl font-bold text-white">{value}</h3>
         <p className="text-gray-400 text-sm">{title}</p>
+        {subtitle && (
+          <p className="text-gray-500 text-xs">{subtitle}</p>
+        )}
       </div>
     </div>
   );
