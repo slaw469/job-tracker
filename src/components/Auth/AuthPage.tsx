@@ -8,16 +8,16 @@ import {
   Lock, 
   User, 
   ArrowRight,
-  Sparkles,
-  TrendingUp
+  Sparkles
 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
 interface AuthPageProps {
   onLogin: (user: { name: string; email: string }) => void;
 }
 
 export function AuthPage({ onLogin }: AuthPageProps) {
-  const { isDark } = useTheme();
+  const { isDark } = useTheme(); // not used directly here; styling uses static classes
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [dailyQuote, setDailyQuote] = useState(getRandomJobMarketQuote());
@@ -28,6 +28,9 @@ export function AuthPage({ onLogin }: AuthPageProps) {
     email: '',
     password: ''
   });
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authInfo, setAuthInfo] = useState<string | null>(null);
 
   useEffect(() => {
     // Change quote every 10 seconds for demo
@@ -67,34 +70,53 @@ export function AuthPage({ onLogin }: AuthPageProps) {
     };
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simple demo login - no actual authentication
-    onLogin({
-      name: formData.name || 'User',
-      email: formData.email || 'user@example.com'
-    });
-  };
-
-  const getQuoteColor = (type: string) => {
-    switch (type) {
-      case 'ceo_quote': return 'text-blue-300';
-      case 'fact': return 'text-red-300';
-      case 'prediction': return 'text-purple-300';
-      case 'trend': return 'text-green-300';
-      default: return 'text-gray-300';
+    setAuthError(null);
+    setAuthLoading(true);
+    setAuthInfo(null);
+    try {
+      if (!supabase) {
+        setAuthError('Auth is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+        return;
+      }
+      if (isLogin) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+        if (error) {
+          setAuthError('Invalid credentials or email not confirmed.');
+        } else if (data.session?.user) {
+          onLogin({
+            name: data.session.user.user_metadata?.name || formData.name || 'User',
+            email: data.session.user.email || formData.email,
+          });
+        }
+      } else {
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: { name: formData.name },
+          },
+        });
+        if (error) {
+          setAuthError(error.message);
+        } else if (data.user) {
+          setAuthInfo('Account created. Check your email to verify before signing in.');
+        }
+      }
+    } finally {
+      setAuthLoading(false);
     }
   };
 
-  const getQuoteIcon = (type: string) => {
-    switch (type) {
-      case 'ceo_quote': return <User className="w-6 h-6" />;
-      case 'fact': return <TrendingUp className="w-6 h-6" />;
-      case 'prediction': return <Sparkles className="w-6 h-6" />;
-      case 'trend': return <TrendingUp className="w-6 h-6" />;
-      default: return <Sparkles className="w-6 h-6" />;
-    }
-  };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const getQuoteColor = (_type: string) => 'text-blue-300';
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const getQuoteIcon = (_type: string) => <Sparkles className="w-6 h-6" />;
 
   return (
     <>
@@ -338,6 +360,18 @@ export function AuthPage({ onLogin }: AuthPageProps) {
                 {isLogin ? 'Sign In' : 'Create Account'}
                 <ArrowRight className="w-4 h-4" />
               </button>
+
+              {authError && (
+                <div className="text-sm text-red-400 mt-2">{authError}</div>
+              )}
+
+              {authInfo && (
+                <div className="text-sm text-green-400 mt-2">{authInfo}</div>
+              )}
+
+              {authLoading && (
+                <div className="text-sm text-gray-400 mt-1">Processing...</div>
+              )}
             </form>
 
             {/* Social Login */}
@@ -352,7 +386,25 @@ export function AuthPage({ onLogin }: AuthPageProps) {
               </div>
 
               <div className="mt-4">
-                <button className="w-full bg-gray-900 hover:bg-gray-800 text-white py-3 px-4 border border-gray-700 transition-colors flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!supabase) return;
+                    setAuthError(null);
+                    setAuthLoading(true);
+                    const { error } = await supabase.auth.signInWithOAuth({
+                      provider: 'google',
+                      options: {
+                        scopes: 'https://www.googleapis.com/auth/gmail.readonly',
+                        queryParams: { access_type: 'offline', prompt: 'consent select_account' },
+                        redirectTo: `${window.location.origin}/dashboard`,
+                      },
+                    });
+                    if (error) setAuthError(error.message);
+                    setAuthLoading(false);
+                  }}
+                  className="w-full bg-gray-900 hover:bg-gray-800 text-white py-3 px-4 border border-gray-700 transition-colors flex items-center justify-center gap-3"
+                >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                     <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>

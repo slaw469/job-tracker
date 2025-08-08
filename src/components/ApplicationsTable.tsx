@@ -1,11 +1,12 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { JobApplication } from '../types/application';
 import { useTheme } from '../contexts/ThemeContext';
-import { getRandomJobMarketQuote } from '../data/jobMarketQuotes';
 import { WelcomeModal } from './WelcomeModal';
 import {
-  Search, Eye, ExternalLink, Calendar, Building2, Bot, Plus, Target, Check, X as XIcon, Mail, Settings, Sun, Moon, LogOut, User, RefreshCw, Inbox, Clock
+  Search, Eye, ExternalLink, Calendar, Building2, Bot, Plus, Check, X as XIcon, Mail, Settings, Sun, Moon, LogOut, User, RefreshCw, Inbox, Clock
 } from 'lucide-react';
+import { fetchApplications as apiFetchApplications, triggerScan as apiTriggerScan } from '../api/n8n';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface User {
   name: string;
@@ -19,6 +20,7 @@ interface ApplicationsTableProps {
   user: User;
   onLogout: () => void;
   onGmailScrape?: (newApplications: JobApplication[]) => void;
+  onSetApplications?: (applications: JobApplication[]) => void;
   showWelcome?: boolean;
   onWelcomeClose?: () => void;
 }
@@ -30,6 +32,7 @@ export function ApplicationsTable({
   user, 
   onLogout,
   onGmailScrape,
+  onSetApplications,
   showWelcome = false,
   onWelcomeClose
 }: ApplicationsTableProps) {
@@ -38,74 +41,166 @@ export function ApplicationsTable({
   const [sortField, setSortField] = useState<keyof JobApplication>('dateAdded');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [showSettings, setShowSettings] = useState(false);
-  const [dailyQuote, setDailyQuote] = useState(getRandomJobMarketQuote());
   const [isScrapingGmail, setIsScrapingGmail] = useState(false);
   const [lastScrapeTime, setLastScrapeTime] = useState<Date | null>(null);
+  const [statusText, setStatusText] = useState<string>('');
+  const [isGmailConnected, setIsGmailConnected] = useState<boolean>(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  // Debug popup lifecycle
   useEffect(() => {
-    // Change quote every 10 seconds for demo
-    const interval = setInterval(() => {
-      setDailyQuote(getRandomJobMarketQuote());
-    }, 10000);
+    if (toast) {
+      // eslint-disable-next-line no-console
+      console.log('🎉 POPUP COMPONENT RENDERED');
+    }
+  }, [toast]);
 
-    return () => clearInterval(interval);
-  }, []);
-
-  // Mock Gmail scraping function
-  const handleGmailScrape = async () => {
-    setIsScrapingGmail(true);
-
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Mock scraped applications from Gmail
-    const scrapedApplications: JobApplication[] = [
-      {
-        id: `gmail_${Date.now()}_1`,
-        jobTitle: 'Senior Software Engineer',
-        company: 'TechFlow Solutions',
-        dateApplied: new Date().toISOString().split('T')[0],
-        dateAdded: new Date().toISOString(),
-        source: 'Gmail',
-        jobUrl: 'https://techflow.com/careers/senior-engineer',
-        emailSubject: 'Thank you for your application - Senior Software Engineer Position',
-        appliedVia: 'Gmail automation',
-        hasReferral: false,
-        notes: 'Auto-detected from Gmail confirmation email'
-      },
-      {
-        id: `gmail_${Date.now()}_2`,
-        jobTitle: 'Product Manager',
-        company: 'InnovateCorp',
-        dateApplied: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString().split('T')[0], // 12 hours ago
-        dateAdded: new Date().toISOString(),
-        source: 'Gmail',
-        emailSubject: 'Application Received: Product Manager Role at InnovateCorp',
-        appliedVia: 'Gmail automation',
-        hasReferral: true,
-        notes: 'Auto-detected from Gmail confirmation email'
-      },
-      {
-        id: `gmail_${Date.now()}_3`,
-        jobTitle: 'UX Designer',
-        company: 'DesignStudio Pro',
-        dateApplied: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString().split('T')[0], // 8 hours ago
-        dateAdded: new Date().toISOString(),
-        source: 'Gmail',
-        jobUrl: 'https://designstudio.com/jobs/ux-designer',
-        emailSubject: 'We received your application for UX Designer position',
-        appliedVia: 'Gmail automation',
-        hasReferral: false,
-        notes: 'Auto-detected from Gmail confirmation email'
+  // Determine Gmail connection on load and keep in sync
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    const init = async () => {
+      if (!supabase) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsGmailConnected(!!session);
+      const toastShownKey = 'gmail_connected_toast_shown';
+      const alreadyShown = sessionStorage.getItem(toastShownKey) === '1';
+      if (session && !alreadyShown) {
+        // eslint-disable-next-line no-console
+        console.log('🎉 SUCCESS POPUP SHOWING (initial session)');
+        setToast({ message: 'Success! Gmail connected successfully.', type: 'success' });
+        sessionStorage.setItem(toastShownKey, '1');
       }
-    ];
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
+        // Debug logs for success animation trigger
+        // eslint-disable-next-line no-console
+        console.log('📡 Auth listener event:', event, 'session?', !!session, 'provider_token?', !!(session as any)?.provider_token);
+        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
+          setIsGmailConnected(true);
+          // eslint-disable-next-line no-console
+          console.log('🎉 SUCCESS POPUP SHOWING', event === 'INITIAL_SESSION' ? '(listener initial)' : '(listener signed_in)');
+          if (sessionStorage.getItem(toastShownKey) !== '1') {
+            setToast({ message: 'Success! Gmail connected successfully.', type: 'success' });
+            sessionStorage.setItem(toastShownKey, '1');
+          }
+        }
+        if (event === 'SIGNED_OUT') {
+          setIsGmailConnected(false);
+          sessionStorage.removeItem(toastShownKey);
+        }
+      });
+      unsubscribe = data.subscription.unsubscribe;
+    };
+    init();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+  
 
-    setLastScrapeTime(new Date());
-    setIsScrapingGmail(false);
+  // Real Gmail scanning via webhook + fetch
+  const handleGmailScrape = async () => {
+    try {
+      setIsScrapingGmail(true);
+      setStatusText('Scanning your inbox...');
+      if (!supabase) {
+        setStatusText('Supabase not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then restart.');
+        return;
+      }
+      if (!isGmailConnected) {
+        setStatusText('Please connect Gmail first');
+        return;
+      }
+      const userRes = await supabase.auth.getUser();
+      const userId = userRes.data?.user?.id;
+      const email = userRes.data?.user?.email;
+      if (!userId) {
+        setStatusText('Please connect Gmail first.');
+        return;
+      }
+      await apiTriggerScan(userId ? { user_id: userId, email } : undefined);
+      // brief delay then pull results
+      await new Promise((r) => setTimeout(r, 2000));
+      const appsRes = await apiFetchApplications();
+      if (appsRes && Array.isArray(appsRes.applications)) {
+        const mapped: JobApplication[] = appsRes.applications.map((a: any, idx: number) => ({
+          id: `n8n_${Date.now()}_${idx}`,
+          jobTitle: a.jobTitle,
+          company: a.company,
+          dateApplied: a.dateApplied,
+          dateAdded: a.dateAdded,
+          source: 'Gmail',
+          appliedVia: 'Gmail automation',
+          hasReferral: false,
+        }));
+        if (onGmailScrape) {
+          onGmailScrape(mapped);
+        }
+        setStatusText(`Scan completed! Found ${appsRes.count ?? mapped.length} applications`);
+      } else {
+        setStatusText('Scan completed, no applications found');
+      }
+    } catch (e) {
+      setStatusText('Network error. Check connection.');
+    } finally {
+      setLastScrapeTime(new Date());
+      setIsScrapingGmail(false);
+    }
+  };
 
-    // Call the parent function to add these applications
-    if (onGmailScrape) {
-      onGmailScrape(scrapedApplications);
+  const handleConnectGmailClick = async () => {
+    if (!isSupabaseConfigured) {
+      setStatusText('Supabase not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then restart dev server.');
+      return;
+    }
+    if (!supabase) {
+      setStatusText('Supabase client not initialized.');
+      return;
+    }
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        scopes: 'https://www.googleapis.com/auth/gmail.readonly',
+        queryParams: {
+          access_type: 'offline',
+          // Force account selection to enable switching accounts after sign out
+          prompt: 'consent select_account',
+        },
+        redirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
+    if (error) {
+      setStatusText(`OAuth error: ${error.message}`);
+    } else {
+      setStatusText('Redirecting to Google...');
+    }
+  };
+
+  const handleRefresh = async () => {
+    setStatusText('Refreshing data...');
+    try {
+      const appsRes = await apiFetchApplications();
+      if (appsRes && Array.isArray(appsRes.applications)) {
+        const mapped: JobApplication[] = appsRes.applications.map((a: any, idx: number) => ({
+          id: `n8n_${Date.now()}_${idx}`,
+          jobTitle: a.jobTitle,
+          company: a.company,
+          dateApplied: a.dateApplied,
+          dateAdded: a.dateAdded,
+          source: 'Gmail',
+          appliedVia: 'Gmail automation',
+          hasReferral: false,
+        }));
+        if (onSetApplications) {
+          onSetApplications(mapped);
+        } else if (onGmailScrape) {
+          onGmailScrape(mapped);
+        }
+        setStatusText(`Loaded ${appsRes.count ?? mapped.length} applications`);
+      } else {
+        setStatusText('No data received');
+      }
+    } catch (e) {
+      setStatusText('Refresh failed');
     }
   };
 
@@ -193,25 +288,8 @@ export function ApplicationsTable({
     return greetings[seed % greetings.length];
   };
 
-  const getQuoteColor = (type: string) => {
-    if (isDark) {
-      switch (type) {
-        case 'ceo_quote': return 'text-blue-400';
-        case 'fact': return 'text-red-400';
-        case 'prediction': return 'text-purple-400';
-        case 'trend': return 'text-green-400';
-        default: return 'text-gray-400';
-      }
-    } else {
-      switch (type) {
-        case 'ceo_quote': return 'text-blue-600';
-        case 'fact': return 'text-red-600';
-        case 'prediction': return 'text-purple-600';
-        case 'trend': return 'text-green-600';
-        default: return 'text-gray-600';
-      }
-    }
-  };
+  // kept for future styling of quotes; currently unused
+  // Removed unused getQuoteColor to satisfy linter
 
   return (
     <>
@@ -255,11 +333,11 @@ export function ApplicationsTable({
                 
                 <button
                   onClick={handleGmailScrape}
-                  disabled={isScrapingGmail}
-                  className={`relative flex items-center gap-4 px-12 py-6 font-semibold text-lg transition-all duration-300 transform hover:scale-105 ${
-                    isScrapingGmail
+                  disabled={isScrapingGmail || !isGmailConnected}
+                  className={`relative group flex items-center gap-4 px-12 py-6 font-semibold text-lg transition-all duration-300 transform ${
+                    (isScrapingGmail || !isGmailConnected)
                       ? 'bg-white text-gray-400 cursor-not-allowed'
-                      : 'bg-white text-gray-900 hover:bg-gray-50 shadow-2xl'
+                      : 'bg-white text-gray-900 hover:bg-gray-50 shadow-2xl hover:scale-105'
                   }`}
                   style={{
                     borderRadius: '12px',
@@ -274,7 +352,7 @@ export function ApplicationsTable({
                     <Inbox className="w-6 h-6 text-blue-500" />
                   )}
                   <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent font-bold">
-                    {isScrapingGmail ? 'Scanning Gmail...' : 'Scan Gmail (Last 24hrs)'}
+                    {isScrapingGmail ? 'Scanning Gmail...' : (isGmailConnected ? 'Scan Gmail (Last 24hrs)' : 'Connect Gmail to Scan')}
                   </span>
                   <Clock className="w-5 h-5 text-gray-500" />
                   
@@ -291,14 +369,28 @@ export function ApplicationsTable({
                       </div>
                     </>
                   )}
+
+                  {/* Disabled tooltip */}
+                  {!isGmailConnected && (
+                    <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className={`px-3 py-2 text-xs rounded shadow border ${
+                        isDark
+                          ? 'bg-gray-800 text-gray-200 border-gray-700'
+                          : 'bg-white text-gray-700 border-gray-200'
+                      }`}>
+                        Please connect Gmail first
+                      </div>
+                    </div>
+                  )}
                 </button>
               </div>
               
-              {lastScrapeTime && (
+              {(statusText || lastScrapeTime) && (
                 <p className={`text-sm mt-4 font-medium ${
                   isDark ? 'text-gray-400' : 'text-gray-600'
                 }`}>
-                  ✨ Last scan: {lastScrapeTime.toLocaleTimeString()}
+                  {statusText ? statusText : ''}
+                  {lastScrapeTime ? `${statusText ? ' • ' : ''}Last scan: ${lastScrapeTime.toLocaleTimeString()}` : ''}
                 </p>
               )}
             </div>
@@ -318,6 +410,19 @@ export function ApplicationsTable({
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
             
+            <button
+              onClick={handleConnectGmailClick}
+              disabled={isGmailConnected}
+              className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors duration-200 ${
+                isGmailConnected
+                  ? (isDark ? 'bg-gray-800 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-500 cursor-not-allowed')
+                  : (isDark ? 'bg-green-900/30 text-green-300 hover:bg-green-900/50' : 'bg-green-100 text-green-800 hover:bg-green-200')
+              }`}
+            >
+              <Mail className="w-4 h-4" />
+              {isGmailConnected ? 'Gmail Connected' : 'Connect Gmail'}
+            </button>
+
             <button
               onClick={() => setShowSettings(true)}
               className={`p-3 transition-colors duration-200 ${
@@ -353,11 +458,80 @@ export function ApplicationsTable({
               <Plus className="w-4 h-4" />
               Add Application
             </button>
+
+            <button
+              onClick={handleRefresh}
+              className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors duration-200 ${
+                isDark
+                  ? 'bg-blue-900/40 text-blue-300 hover:bg-blue-900/60'
+                  : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+              }`}
+              title="Refresh Data"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
           </div>
         </div>
 
         {/* Content Section */}
         <div className="px-8 py-8">
+        {/* Success Popup (user dismissible) */}
+        {toast && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => {
+                // eslint-disable-next-line no-console
+                console.log('🎉 SUCCESS POPUP DISMISSED (backdrop)');
+                setToast(null);
+              }}
+            />
+            {/* Dialog */}
+            <div
+              className={`relative max-w-sm w-[90%] mx-auto border shadow-2xl ${
+                toast.type === 'success'
+                  ? (isDark ? 'bg-gray-900 border-green-800' : 'bg-white border-green-200')
+                  : (isDark ? 'bg-gray-900 border-red-800' : 'bg-white border-red-200')
+              }`}
+              role="dialog"
+              aria-live="assertive"
+            >
+              <div className="p-5">
+                <div className="flex items-start gap-3">
+                  <div className={`${toast.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>✔</div>
+                  <div className={`${isDark ? 'text-white' : 'text-gray-900'} font-medium`}>{toast.message}</div>
+                </div>
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      // eslint-disable-next-line no-console
+                      console.log('🎉 SUCCESS POPUP DISMISSED (button)');
+                      setToast(null);
+                    }}
+                    className={`${
+                      isDark ? 'bg-green-800 text-white hover:bg-green-700' : 'bg-green-600 text-white hover:bg-green-700'
+                    } px-4 py-2 text-sm`}
+                  >
+                    OK
+                  </button>
+                </div>
+                <button
+                  onClick={() => {
+                    // eslint-disable-next-line no-console
+                    console.log('🎉 SUCCESS POPUP DISMISSED (close)');
+                    setToast(null);
+                  }}
+                  className={`absolute top-2 right-2 ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`}
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
           {/* App Header */}
           <div className="flex items-center gap-3 mb-8">
             <div className="w-12 h-12 flex items-center justify-center relative">
