@@ -28,7 +28,7 @@ export async function connectGmail(): Promise<{ success: boolean; error?: unknow
         access_type: 'offline',
         prompt: 'consent'
       },
-      redirectTo: `${window.location.origin}`
+      redirectTo: `${window.location.origin}/dashboard`
     }
   });
 

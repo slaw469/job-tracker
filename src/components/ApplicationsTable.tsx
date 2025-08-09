@@ -159,7 +159,6 @@ export function ApplicationsTable({
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        scopes: 'https://www.googleapis.com/auth/gmail.readonly',
         queryParams: {
           access_type: 'offline',
           // Force account selection to enable switching accounts after sign out
