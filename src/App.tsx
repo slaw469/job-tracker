@@ -6,6 +6,7 @@ import { AuthPage } from './components/Auth/AuthPage';
 import { JobApplication } from './types/application';
 import { mockApplications } from './data/mockData';
 import { supabase } from './lib/supabase';
+import { WelcomeModal } from './components/WelcomeModal';
 
 interface User {
   name: string;
@@ -20,6 +21,7 @@ function App() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [applications, setApplications] = useState<JobApplication[]>(mockApplications);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [pendingNameUpdate, setPendingNameUpdate] = useState(false);
 
   const handleSelectApplication = (application: JobApplication) => {
     setSelectedApplication(application);
@@ -54,7 +56,10 @@ function App() {
 
   const handleLogin = (userData: User) => {
     setUser(userData);
-    setShowWelcome(true); // Show welcome modal when user logs in
+    // If user has no name yet, open onboarding modal to capture it
+    const hasName = Boolean(userData.name && userData.name.trim().length > 0);
+    setShowWelcome(true);
+    setPendingNameUpdate(!hasName);
   };
 
   const handleWelcomeClose = () => {
@@ -257,6 +262,20 @@ function App() {
 
   return (
     <div className="min-h-screen">
+      <WelcomeModal
+        isOpen={showWelcome}
+        onClose={handleWelcomeClose}
+        userName={user.name}
+        onSubmitName={async (name: string) => {
+          setPendingNameUpdate(true);
+          try {
+            await supabase?.auth.updateUser({ data: { name } });
+            setUser((prev) => (prev ? { ...prev, name } : prev));
+          } finally {
+            setPendingNameUpdate(false);
+          }
+        }}
+      />
       <ApplicationsTable
         applications={applications}
         onSelectApplication={handleSelectApplication}

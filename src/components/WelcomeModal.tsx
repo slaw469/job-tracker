@@ -7,11 +7,14 @@ interface WelcomeModalProps {
   isOpen: boolean;
   onClose: () => void;
   userName: string;
+  onSubmitName?: (name: string) => Promise<void> | void;
 }
 
-export function WelcomeModal({ isOpen, onClose, userName }: WelcomeModalProps) {
+export function WelcomeModal({ isOpen, onClose, userName, onSubmitName }: WelcomeModalProps) {
   const { isDark } = useTheme();
   const [welcomeQuote] = useState(getRandomJobMarketQuote());
+  const [askName, setAskName] = useState(!userName || userName.trim().length === 0);
+  const [nameInput, setNameInput] = useState('');
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -86,6 +89,35 @@ export function WelcomeModal({ isOpen, onClose, userName }: WelcomeModalProps) {
           }`}
           onClick={onClose}
         >
+          {/* Onboarding name prompt */}
+          {askName ? (
+            <div className="max-w-md mx-auto text-center">
+              <h2 className="text-2xl font-bold mb-3">Hey there! Ready to track your jobs?</h2>
+              <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Enter your name down below to personalize your experience.</p>
+              <div className="flex gap-2">
+                <input
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  className={`flex-1 px-4 py-3 border ${isDark ? 'bg-black border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                  placeholder="Your name"
+                />
+                <button
+                  className="px-5 py-3 bg-blue-600 text-white font-semibold hover:bg-blue-700"
+                  onClick={async () => {
+                    if (!nameInput.trim()) return;
+                    if (onSubmitName) {
+                      await onSubmitName(nameInput.trim());
+                    }
+                    setAskName(false);
+                  }}
+                  disabled={!nameInput.trim()}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          ) : (
+          <>
           {/* Welcome Header */}
           <div className="text-center mb-8">
             <div className={`w-16 h-16 mx-auto mb-4 flex items-center justify-center relative`}>
@@ -179,6 +211,8 @@ export function WelcomeModal({ isOpen, onClose, userName }: WelcomeModalProps) {
               }`}>Esc</kbd>
             </p>
           </div>
+          </>
+          )}
         </div>
       </div>
     </>

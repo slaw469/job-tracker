@@ -63,8 +63,7 @@ export function ApplicationsTable({
 
     const isGmailConnectedFromSession = (sess: any): boolean => {
       const provider = sess?.user?.app_metadata?.provider;
-      const hasProviderToken = Boolean((sess as any)?.provider_token);
-      return provider === 'google' || hasProviderToken;
+      return provider === 'google';
     };
 
     const init = async () => {
@@ -76,7 +75,7 @@ export function ApplicationsTable({
       // Only show success toast if we explicitly initiated a Gmail connect from CRM
       const initiated = sessionStorage.getItem(connectInitiatedKey) === '1';
       const alreadyShown = sessionStorage.getItem(toastShownKey) === '1';
-      if (connected && initiated && !alreadyShown) {
+      if (connected && initiated && !alreadyShown && !showWelcome) {
         setToast({ message: 'Success! Gmail connected successfully.', type: 'success' });
         sessionStorage.setItem(toastShownKey, '1');
         sessionStorage.removeItem(connectInitiatedKey);
@@ -91,9 +90,12 @@ export function ApplicationsTable({
 
           const initiated2 = sessionStorage.getItem(connectInitiatedKey) === '1';
           const alreadyShown2 = sessionStorage.getItem(toastShownKey) === '1';
-          if (nowConnected && initiated2 && !alreadyShown2) {
+          if (nowConnected && initiated2 && !alreadyShown2 && !showWelcome) {
             setToast({ message: 'Success! Gmail connected successfully.', type: 'success' });
             sessionStorage.setItem(toastShownKey, '1');
+            sessionStorage.removeItem(connectInitiatedKey);
+          } else if (!nowConnected && initiated2) {
+            // If we signed in via email/password, ensure leftover flag doesn't cause future false positives
             sessionStorage.removeItem(connectInitiatedKey);
           }
         }

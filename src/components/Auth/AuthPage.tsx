@@ -80,20 +80,25 @@ export function AuthPage({ onLogin }: AuthPageProps) {
         setAuthError('Auth is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
         return;
       }
-      if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
-        if (error) {
-          setAuthError('Invalid credentials or email not confirmed.');
-        } else if (data.session?.user) {
-          onLogin({
-            name: data.session.user.user_metadata?.name || formData.name || 'User',
-            email: data.session.user.email || formData.email,
+        if (isLogin) {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: formData.email,
+            password: formData.password,
           });
-        }
-      } else {
+          if (error) {
+            setAuthError('Invalid credentials or email not confirmed.');
+          } else if (data.session?.user) {
+            // If user metadata lacks name and form has a name, update the profile
+            const currentName = (data.session.user.user_metadata as any)?.name;
+            if (!currentName && formData.name) {
+              await supabase.auth.updateUser({ data: { name: formData.name } });
+            }
+            onLogin({
+              name: (data.session.user.user_metadata as any)?.name || formData.name || 'User',
+              email: data.session.user.email || formData.email,
+            });
+          }
+        } else {
         const { data, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
@@ -101,9 +106,51 @@ export function AuthPage({ onLogin }: AuthPageProps) {
             data: { name: formData.name },
           },
         });
+
+        // If signup immediately returns a session (email confirmations disabled), log in
+        if (data?.session?.user) {
+          onLogin({
+            name: data.session.user.user_metadata?.name || formData.name || 'User',
+            email: data.session.user.email || formData.email,
+          });
+          return;
+        }
+
+        // If user already exists, try to sign in with the provided credentials
+        if (error && /already\s+registered/i.test(error.message || '')) {
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: formData.email,
+            password: formData.password,
+          });
+          if (!signInError && signInData.session?.user) {
+            onLogin({
+              name: signInData.session.user.user_metadata?.name || formData.name || 'User',
+              email: signInData.session.user.email || formData.email,
+            });
+            return;
+          }
+        }
+
         if (error) {
           setAuthError(error.message);
-        } else if (data.user) {
+          return;
+        }
+
+        // Fallback: no session yet (likely email confirmation required). Attempt immediate sign-in once.
+        const { data: signInData2 } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+        if (signInData2?.session?.user) {
+          // Ensure name is saved on profile if provided
+          if (formData.name) {
+            await supabase.auth.updateUser({ data: { name: formData.name } });
+          }
+          onLogin({
+            name: signInData2.session.user.user_metadata?.name || formData.name || 'User',
+            email: signInData2.session.user.email || formData.email,
+          });
+        } else {
           setAuthInfo('Account created. Check your email to verify before signing in.');
         }
       }
@@ -307,7 +354,7 @@ export function AuthPage({ onLogin }: AuthPageProps) {
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
                     className="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                     placeholder="Enter your name"
-                    required
+                    required={!isLogin}
                   />
                 </div>
               </div>
