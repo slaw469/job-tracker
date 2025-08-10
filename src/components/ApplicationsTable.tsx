@@ -3,7 +3,7 @@ import { JobApplication } from '../types/application';
 import { useTheme } from '../contexts/ThemeContext';
 import { WelcomeModal } from './WelcomeModal';
 import {
-  Search, Eye, ExternalLink, Calendar, Building2, Bot, Plus, Check, X as XIcon, Mail, Settings, Sun, Moon, LogOut, User, RefreshCw, Inbox, Clock
+  Search, Eye, ExternalLink, Calendar, Building2, Bot, Plus, Check, X as XIcon, Mail, Settings, Sun, Moon, User, RefreshCw, Inbox, Clock
 } from 'lucide-react';
 import { fetchApplications as apiFetchApplications, triggerScan as apiTriggerScan } from '../api/n8n';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -425,7 +425,7 @@ export function ApplicationsTable({
             </div>
           </div>
           
-          {/* Top Controls */}
+          {/* Top Controls (only: theme, connect gmail, add app, refresh) */}
           <div className="flex items-center justify-center gap-4 mt-12">
             <button
               onClick={toggleTheme}
@@ -452,29 +452,6 @@ export function ApplicationsTable({
               {isGmailConnected ? 'Gmail Connected' : 'Connect Gmail'}
             </button>
 
-            <button
-              onClick={() => setShowSettings(true)}
-              className={`p-3 transition-colors duration-200 ${
-                isDark 
-                  ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' 
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-              }`}
-              title="Settings"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
-
-            <button
-              onClick={onLogout}
-              className={`p-3 transition-colors duration-200 ${
-                isDark 
-                  ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' 
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-              }`}
-              title="Sign Out"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
             
             <button
               onClick={onAddApplication}
@@ -503,8 +480,31 @@ export function ApplicationsTable({
           </div>
         </div>
 
-        {/* Content Section */}
+        {/* Content Section with Tabs: CRM / Settings / Upgrade */}
         <div className="px-8 py-8">
+        {/* Tabs */}
+        <div className="max-w-6xl mx-auto mb-6">
+          <div className={`inline-flex rounded-lg overflow-hidden border ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
+            <button
+              onClick={() => setShowSettings(false)}
+              className={`px-4 py-2 text-sm font-medium ${!showSettings ? (isDark ? 'bg-white/10 text-white' : 'bg-black text-white') : (isDark ? 'bg-transparent text-gray-400' : 'bg-transparent text-gray-600')}`}
+            >
+              CRM
+            </button>
+            <button
+              onClick={() => setShowSettings(true)}
+              className={`px-4 py-2 text-sm font-medium ${showSettings ? (isDark ? 'bg-white/10 text-white' : 'bg-black text-white') : (isDark ? 'bg-transparent text-gray-400' : 'bg-transparent text-gray-600')}`}
+            >
+              Settings
+            </button>
+            <button
+              onClick={() => window.open('https://applytrack.pro/upgrade', '_blank')}
+              className={`px-4 py-2 text-sm font-medium ${isDark ? 'bg-transparent text-amber-400 hover:text-amber-300' : 'bg-transparent text-amber-700 hover:text-amber-800'}`}
+            >
+              Upgrade
+            </button>
+          </div>
+        </div>
         {/* Success Popup (user dismissible). Hide during welcome modal */}
         {toast && !showWelcome && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center">

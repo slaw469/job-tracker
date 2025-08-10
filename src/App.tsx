@@ -162,6 +162,10 @@ function App() {
         console.log('✅ USER IS LOGGED IN');
         const userName = (session.user.user_metadata as any)?.name || (session.user.email?.split('@')[0] || 'User');
         setUser({ name: userName, email: session.user.email || '' });
+        // Ensure onboarding modal shows after OAuth (Google) or any fresh session
+        const hasName = Boolean(userName && String(userName).trim().length > 0);
+        setShowWelcome(true);
+        setPendingNameUpdate(!hasName);
       } else {
         // eslint-disable-next-line no-console
         console.log('❌ USER IS NOT LOGGED IN');
@@ -215,6 +219,10 @@ function App() {
           }
           const userName = (session.user.user_metadata as any)?.name || (email.split('@')[0] || 'User');
           setUser({ name: userName, email });
+          // Show onboarding modal on sign-in, prompt for name if missing
+          const hasName = Boolean(userName && String(userName).trim().length > 0);
+          setShowWelcome(true);
+          setPendingNameUpdate(!hasName);
           if (window.location.pathname !== '/dashboard') {
             window.history.replaceState(null, '', '/dashboard');
           }
