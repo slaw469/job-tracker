@@ -58,34 +58,49 @@ export function ApplicationsTable({
   // Determine Gmail connection on load and keep in sync
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
+    const toastShownKey = 'gmail_connected_toast_shown';
+    const connectInitiatedKey = 'gmail_connect_initiated';
+
+    const isGmailConnectedFromSession = (sess: any): boolean => {
+      const provider = sess?.user?.app_metadata?.provider;
+      const hasProviderToken = Boolean((sess as any)?.provider_token);
+      return provider === 'google' || hasProviderToken;
+    };
+
     const init = async () => {
       if (!supabase) return;
       const { data: { session } } = await supabase.auth.getSession();
-      setIsGmailConnected(!!session);
-      const toastShownKey = 'gmail_connected_toast_shown';
+      const connected = isGmailConnectedFromSession(session);
+      setIsGmailConnected(connected);
+
+      // Only show success toast if we explicitly initiated a Gmail connect from CRM
+      const initiated = sessionStorage.getItem(connectInitiatedKey) === '1';
       const alreadyShown = sessionStorage.getItem(toastShownKey) === '1';
-      if (session && !alreadyShown) {
-        // eslint-disable-next-line no-console
-        console.log('🎉 SUCCESS POPUP SHOWING (initial session)');
+      if (connected && initiated && !alreadyShown) {
         setToast({ message: 'Success! Gmail connected successfully.', type: 'success' });
         sessionStorage.setItem(toastShownKey, '1');
+        sessionStorage.removeItem(connectInitiatedKey);
       }
-      const { data } = supabase.auth.onAuthStateChange((event, session) => {
-        // Debug logs for success animation trigger
+
+      const { data } = supabase.auth.onAuthStateChange((event, sess) => {
         // eslint-disable-next-line no-console
-        console.log('📡 Auth listener event:', event, 'session?', !!session, 'provider_token?', !!(session as any)?.provider_token);
-        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
-          setIsGmailConnected(true);
-          // eslint-disable-next-line no-console
-          console.log('🎉 SUCCESS POPUP SHOWING', event === 'INITIAL_SESSION' ? '(listener initial)' : '(listener signed_in)');
-          if (sessionStorage.getItem(toastShownKey) !== '1') {
+        console.log('📡 Auth listener event:', event, 'session?', !!sess, 'provider:', sess?.user?.app_metadata?.provider);
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+          const nowConnected = isGmailConnectedFromSession(sess);
+          setIsGmailConnected(nowConnected);
+
+          const initiated2 = sessionStorage.getItem(connectInitiatedKey) === '1';
+          const alreadyShown2 = sessionStorage.getItem(toastShownKey) === '1';
+          if (nowConnected && initiated2 && !alreadyShown2) {
             setToast({ message: 'Success! Gmail connected successfully.', type: 'success' });
             sessionStorage.setItem(toastShownKey, '1');
+            sessionStorage.removeItem(connectInitiatedKey);
           }
         }
         if (event === 'SIGNED_OUT') {
           setIsGmailConnected(false);
           sessionStorage.removeItem(toastShownKey);
+          sessionStorage.removeItem(connectInitiatedKey);
         }
       });
       unsubscribe = data.subscription.unsubscribe;
@@ -156,6 +171,12 @@ export function ApplicationsTable({
       setStatusText('Supabase client not initialized.');
       return;
     }
+    // Mark that the Gmail connect was intentionally initiated from CRM
+    try {
+      sessionStorage.setItem('gmail_connect_initiated', '1');
+      // Allow showing a fresh success toast on next sign-in
+      sessionStorage.removeItem('gmail_connected_toast_shown');
+    } catch {}
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
