@@ -12,6 +12,12 @@ export interface N8nApiResponse {
 }
 
 const BASE_URL = import.meta.env.VITE_N8N_BASE_URL || 'https://primary-production-4915a.up.railway.app';
+const SCAN_URL =
+  (import.meta.env.VITE_N8N_SCAN_URL as string | undefined)
+    || `${BASE_URL}/webhook/scan`;
+const APPLICATIONS_URL =
+  (import.meta.env.VITE_N8N_APPS_URL as string | undefined)
+    || `${BASE_URL}/webhook/applications`;
 const WEBHOOK_SECRET = import.meta.env.VITE_WEBHOOK_SECRET as string;
 
 function buildHeaders(): HeadersInit {
@@ -25,8 +31,7 @@ function buildHeaders(): HeadersInit {
 }
 
 export async function triggerScan(body?: Record<string, unknown>): Promise<{ count?: number } | undefined> {
-  const url = `${BASE_URL}/webhook/scan`;
-  const response = await fetch(url, {
+  const response = await fetch(SCAN_URL, {
     method: 'POST',
     headers: buildHeaders(),
     body: body ? JSON.stringify(body) : undefined,
@@ -40,8 +45,7 @@ export async function triggerScan(body?: Record<string, unknown>): Promise<{ cou
 }
 
 export async function fetchApplications(): Promise<N8nApiResponse | undefined> {
-  const url = `${BASE_URL}/webhook/applications`;
-  const response = await fetch(url, {
+  const response = await fetch(APPLICATIONS_URL, {
     method: 'GET',
     headers: buildHeaders(),
   });
