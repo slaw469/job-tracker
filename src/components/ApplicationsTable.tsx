@@ -60,6 +60,7 @@ export function ApplicationsTable({
     let unsubscribe: (() => void) | undefined;
     const toastShownKey = 'gmail_connected_toast_shown';
     const connectInitiatedKey = 'gmail_connect_initiated';
+    const connectedOnceKey = `gmail_connected_once:${(user?.email || '').toLowerCase()}`;
 
     const isGmailConnectedFromSession = (sess: any): boolean => {
       const provider = sess?.user?.app_metadata?.provider;
@@ -75,9 +76,13 @@ export function ApplicationsTable({
       // Only show success toast if we explicitly initiated a Gmail connect from CRM
       const initiated = sessionStorage.getItem(connectInitiatedKey) === '1';
       const alreadyShown = sessionStorage.getItem(toastShownKey) === '1';
-      if (connected && initiated && !alreadyShown && !showWelcome) {
+      const connectedOnce = ((): boolean => {
+        try { return localStorage.getItem(connectedOnceKey) === '1'; } catch { return false; }
+      })();
+      if (connected && initiated && !alreadyShown && !connectedOnce && !showWelcome) {
         setToast({ message: 'Success! Gmail connected successfully.', type: 'success' });
         sessionStorage.setItem(toastShownKey, '1');
+        try { localStorage.setItem(connectedOnceKey, '1'); } catch {}
         sessionStorage.removeItem(connectInitiatedKey);
       }
 
@@ -90,9 +95,13 @@ export function ApplicationsTable({
 
           const initiated2 = sessionStorage.getItem(connectInitiatedKey) === '1';
           const alreadyShown2 = sessionStorage.getItem(toastShownKey) === '1';
-          if (nowConnected && initiated2 && !alreadyShown2 && !showWelcome) {
+          const connectedOnce2 = ((): boolean => {
+            try { return localStorage.getItem(connectedOnceKey) === '1'; } catch { return false; }
+          })();
+          if (nowConnected && initiated2 && !alreadyShown2 && !connectedOnce2 && !showWelcome) {
             setToast({ message: 'Success! Gmail connected successfully.', type: 'success' });
             sessionStorage.setItem(toastShownKey, '1');
+            try { localStorage.setItem(connectedOnceKey, '1'); } catch {}
             sessionStorage.removeItem(connectInitiatedKey);
           } else if (!nowConnected && initiated2) {
             // If we signed in via email/password, ensure leftover flag doesn't cause future false positives
@@ -101,7 +110,6 @@ export function ApplicationsTable({
         }
         if (event === 'SIGNED_OUT') {
           setIsGmailConnected(false);
-          sessionStorage.removeItem(toastShownKey);
           sessionStorage.removeItem(connectInitiatedKey);
         }
       });
@@ -176,8 +184,6 @@ export function ApplicationsTable({
     // Mark that the Gmail connect was intentionally initiated from CRM
     try {
       sessionStorage.setItem('gmail_connect_initiated', '1');
-      // Allow showing a fresh success toast on next sign-in
-      sessionStorage.removeItem('gmail_connected_toast_shown');
     } catch {}
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -499,8 +505,8 @@ export function ApplicationsTable({
 
         {/* Content Section */}
         <div className="px-8 py-8">
-        {/* Success Popup (user dismissible) */}
-        {toast && (
+        {/* Success Popup (user dismissible). Hide during welcome modal */}
+        {toast && !showWelcome && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center">
             {/* Backdrop */}
             <div

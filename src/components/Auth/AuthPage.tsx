@@ -6,7 +6,6 @@ import {
   EyeOff, 
   Mail, 
   Lock, 
-  User, 
   ArrowRight,
   Sparkles
 } from 'lucide-react';
@@ -342,22 +341,23 @@ export function AuthPage({ onLogin }: AuthPageProps) {
 
             {/* Auth Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Your Name
-                </label>
-                <div className="relative">
-                  <User className="w-5 h-5 absolute left-3 top-3 text-gray-500" />
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
-                    placeholder="Enter your name"
-                    required={!isLogin}
-                  />
+              {!isLogin && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Your Name
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      className="w-full pl-4 pr-4 py-3 bg-gray-900 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
+                      placeholder="Enter your name"
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
