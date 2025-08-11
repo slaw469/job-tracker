@@ -58,12 +58,19 @@ function App() {
     setUser(userData);
     // If user has no name yet, open onboarding modal to capture it
     const hasName = Boolean(userData.name && userData.name.trim().length > 0);
-    setShowWelcome(true);
-    setPendingNameUpdate(!hasName);
+    const key = `welcome_shown:${(userData.email || '').toLowerCase()}`;
+    const alreadyShown = (() => { try { return sessionStorage.getItem(key) === '1'; } catch { return false; } })();
+    if (!alreadyShown) {
+      setShowWelcome(true);
+      setPendingNameUpdate(!hasName);
+    }
   };
 
   const handleWelcomeClose = () => {
     setShowWelcome(false);
+    try {
+      if (user?.email) sessionStorage.setItem(`welcome_shown:${user.email.toLowerCase()}`, '1');
+    } catch {}
   };
 
   const handleLogout = async () => {
@@ -161,11 +168,15 @@ function App() {
         // eslint-disable-next-line no-console
         console.log('✅ USER IS LOGGED IN');
         const userName = (session.user.user_metadata as any)?.name || (session.user.email?.split('@')[0] || 'User');
-        setUser({ name: userName, email: session.user.email || '' });
-        // Ensure onboarding modal shows after OAuth (Google) or any fresh session
+        const resolvedEmail = session.user.email || '';
+        setUser({ name: userName, email: resolvedEmail });
         const hasName = Boolean(userName && String(userName).trim().length > 0);
-        setShowWelcome(true);
-        setPendingNameUpdate(!hasName);
+        const key = `welcome_shown:${resolvedEmail.toLowerCase()}`;
+        const alreadyShown = (() => { try { return sessionStorage.getItem(key) === '1'; } catch { return false; } })();
+        if (!alreadyShown) {
+          setShowWelcome(true);
+          setPendingNameUpdate(!hasName);
+        }
       } else {
         // eslint-disable-next-line no-console
         console.log('❌ USER IS NOT LOGGED IN');
@@ -219,10 +230,14 @@ function App() {
           }
           const userName = (session.user.user_metadata as any)?.name || (email.split('@')[0] || 'User');
           setUser({ name: userName, email });
-          // Show onboarding modal on sign-in, prompt for name if missing
+          // Show onboarding modal on sign-in only if not already shown this session
           const hasName = Boolean(userName && String(userName).trim().length > 0);
-          setShowWelcome(true);
-          setPendingNameUpdate(!hasName);
+          const key = `welcome_shown:${email.toLowerCase()}`;
+          const alreadyShown = (() => { try { return sessionStorage.getItem(key) === '1'; } catch { return false; } })();
+          if (!alreadyShown) {
+            setShowWelcome(true);
+            setPendingNameUpdate(!hasName);
+          }
           if (window.location.pathname !== '/dashboard') {
             window.history.replaceState(null, '', '/dashboard');
           }

@@ -3,7 +3,7 @@ import { JobApplication } from '../types/application';
 import { useTheme } from '../contexts/ThemeContext';
 import { WelcomeModal } from './WelcomeModal';
 import {
-  Search, Eye, ExternalLink, Calendar, Building2, Bot, Plus, Check, X as XIcon, Mail, Settings, Sun, Moon, User, RefreshCw, Inbox, Clock
+  Search, Eye, ExternalLink, Calendar, Building2, Bot, Plus, Check, X as XIcon, Mail, Settings, Sun, Moon, User, RefreshCw, Inbox, Clock, LogOut
 } from 'lucide-react';
 import { fetchApplications as apiFetchApplications, triggerScan as apiTriggerScan } from '../api/n8n';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -425,7 +425,7 @@ export function ApplicationsTable({
             </div>
           </div>
           
-          {/* Top Controls (only: theme, connect gmail, add app, refresh) */}
+          {/* Top Controls (theme, connect gmail, logout, add app, refresh) */}
           <div className="flex items-center justify-center gap-4 mt-12">
             <button
               onClick={toggleTheme}
@@ -450,6 +450,18 @@ export function ApplicationsTable({
             >
               <Mail className="w-4 h-4" />
               {isGmailConnected ? 'Gmail Connected' : 'Connect Gmail'}
+            </button>
+
+            <button
+              onClick={onLogout}
+              className={`p-3 transition-colors duration-200 ${
+                isDark 
+                  ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' 
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+              }`}
+              title="Sign Out"
+            >
+              <LogOut className="w-5 h-5" />
             </button>
 
             
