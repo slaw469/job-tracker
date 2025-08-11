@@ -35,7 +35,7 @@ export function ApplicationsTable({
   onGmailScrape,
   onSetApplications,
   showWelcome = false,
-  onWelcomeClose
+  onWelcomeClose,
   onDeleteApplication
 }: ApplicationsTableProps) {
   const { isDark, toggleTheme } = useTheme();
