@@ -10,11 +10,10 @@ const UpgradeRoute = lazy(() => import('./screens/dashboard/UpgradeRoute'));
 const ApplicationDetailRoute = lazy(() => import('./screens/dashboard/ApplicationDetailRoute'));
 
 // Lazy pages/components
-const AppDashboard = lazy(() => import('../App'));
-const AuthPage = lazy(() => import('../components/Auth/AuthPage'));
-const OnboardingName = lazy(() => import('../routes/screens/OnboardingName'));
-const OnboardingWelcome = lazy(() => import('../routes/screens/OnboardingWelcome'));
-const NotFound = lazy(() => import('../routes/screens/NotFound'));
+const AuthPage = lazy(() => import('../components/Auth/AuthPage').then(m => ({ default: m.AuthPage })));
+const OnboardingName = lazy(() => import('./screens/OnboardingName'));
+const OnboardingWelcome = lazy(() => import('./screens/OnboardingWelcome'));
+const NotFound = lazy(() => import('./screens/NotFound'));
 
 export interface UserState {
   isAuthenticated: boolean;
@@ -101,28 +100,50 @@ export const router = createBrowserRouter([
     children: [
       {
         path: 'name-entry',
-        element: (<ProtectedRoute requireOnboarding><OnboardingName /></ProtectedRoute>),
+        element: (
+          <ProtectedRoute requireOnboarding>
+            <React.Suspense fallback={<RouteLoader />}>
+              <OnboardingName />
+            </React.Suspense>
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'welcome',
-        element: (<ProtectedRoute requireOnboarding><OnboardingWelcome /></ProtectedRoute>),
+        element: (
+          <ProtectedRoute requireOnboarding>
+            <React.Suspense fallback={<RouteLoader />}>
+              <OnboardingWelcome />
+            </React.Suspense>
+          </ProtectedRoute>
+        ),
       },
     ],
   },
   {
     path: '/dashboard/*',
-    element: (<ProtectedRoute><DashboardLayout /></ProtectedRoute>),
+    element: (
+      <ProtectedRoute>
+        <React.Suspense fallback={<RouteLoader />}>
+          <DashboardLayout />
+        </React.Suspense>
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <Navigate to="/dashboard/crm" replace /> },
-      { path: 'crm', element: <CrmRoute /> },
-      { path: 'settings', element: <SettingsRoute /> },
-      { path: 'upgrade', element: <UpgradeRoute /> },
-      { path: 'applications/:id', element: <ApplicationDetailRoute /> },
+      { path: 'crm', element: <React.Suspense fallback={<RouteLoader />}><CrmRoute /></React.Suspense> },
+      { path: 'settings', element: <React.Suspense fallback={<RouteLoader />}><SettingsRoute /></React.Suspense> },
+      { path: 'upgrade', element: <React.Suspense fallback={<RouteLoader />}><UpgradeRoute /></React.Suspense> },
+      { path: 'applications/:id', element: <React.Suspense fallback={<RouteLoader />}><ApplicationDetailRoute /></React.Suspense> },
     ],
   },
   {
     path: '*',
-    element: <NotFound />,
+    element: (
+      <React.Suspense fallback={<RouteLoader />}>
+        <NotFound />
+      </React.Suspense>
+    ),
   },
 ]);
 
