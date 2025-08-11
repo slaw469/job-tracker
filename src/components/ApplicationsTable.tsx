@@ -65,13 +65,24 @@ export function ApplicationsTable({
     const connectedOnceKey = `gmail_connected_once:${(user?.email || '').toLowerCase()}`;
 
     const isGmailConnectedFromSession = (sess: any): boolean => {
-      const provider = sess?.user?.app_metadata?.provider;
-      return provider === 'google';
+      const email = sess?.user?.email?.toLowerCase();
+      if (!email) return false;
+      try { return localStorage.getItem(`gmail_scopes_granted:${email}`) === '1'; } catch { return false; }
     };
 
     const init = async () => {
       if (!supabase) return;
       const { data: { session } } = await supabase.auth.getSession();
+      // If we returned from a Gmail auth redirect with marker, persist connection flag
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if ((params.get('gmail_auth') === '1' || params.get('gmail_auth') === 'success') && session?.user?.email) {
+          localStorage.setItem(`gmail_scopes_granted:${session.user.email.toLowerCase()}`, '1');
+          // Clean the URL after capturing
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+      } catch {}
+
       const connected = isGmailConnectedFromSession(session);
       setIsGmailConnected(connected);
 
@@ -92,21 +103,24 @@ export function ApplicationsTable({
         // eslint-disable-next-line no-console
         console.log('📡 Auth listener event:', event, 'session?', !!sess, 'provider:', sess?.user?.app_metadata?.provider);
         if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-          const nowConnected = isGmailConnectedFromSession(sess);
-          setIsGmailConnected(nowConnected);
-
+          const email = sess?.user?.email?.toLowerCase();
           const initiated2 = sessionStorage.getItem(connectInitiatedKey) === '1';
           const alreadyShown2 = sessionStorage.getItem(toastShownKey) === '1';
           const connectedOnce2 = ((): boolean => {
             try { return localStorage.getItem(connectedOnceKey) === '1'; } catch { return false; }
           })();
+          // Only mark Gmail connected if this sign-in was initiated from the Gmail connect button
+          if (initiated2 && email) {
+            try { localStorage.setItem(`gmail_scopes_granted:${email}`, '1'); } catch {}
+          }
+          const nowConnected = isGmailConnectedFromSession(sess);
+          setIsGmailConnected(nowConnected);
           if (nowConnected && initiated2 && !alreadyShown2 && !connectedOnce2 && !showWelcome) {
             setToast({ message: 'Success! Gmail connected successfully.', type: 'success' });
             sessionStorage.setItem(toastShownKey, '1');
             try { localStorage.setItem(connectedOnceKey, '1'); } catch {}
             sessionStorage.removeItem(connectInitiatedKey);
           } else if (!nowConnected && initiated2) {
-            // If we signed in via email/password, ensure leftover flag doesn't cause future false positives
             sessionStorage.removeItem(connectInitiatedKey);
           }
         }
