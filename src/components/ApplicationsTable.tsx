@@ -490,33 +490,35 @@ export function ApplicationsTable({
               Refresh
             </button>
           </div>
-        </div>
-
-        {/* Content Section with Tabs: CRM / Settings / Upgrade */}
-        <div className="px-8 py-8">
-        {/* Tabs */}
-        <div className="max-w-6xl mx-auto mb-6">
-          <div className={`inline-flex rounded-lg overflow-hidden border ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
-            <button
-              onClick={() => setShowSettings(false)}
-              className={`px-4 py-2 text-sm font-medium ${!showSettings ? (isDark ? 'bg-white/10 text-white' : 'bg-black text-white') : (isDark ? 'bg-transparent text-gray-400' : 'bg-transparent text-gray-600')}`}
-            >
-              CRM
-            </button>
-            <button
-              onClick={() => setShowSettings(true)}
-              className={`px-4 py-2 text-sm font-medium ${showSettings ? (isDark ? 'bg-white/10 text-white' : 'bg-black text-white') : (isDark ? 'bg-transparent text-gray-400' : 'bg-transparent text-gray-600')}`}
-            >
-              Settings
-            </button>
-            <button
-              onClick={() => window.open('https://applytrack.pro/upgrade', '_blank')}
-              className={`px-4 py-2 text-sm font-medium ${isDark ? 'bg-transparent text-amber-400 hover:text-amber-300' : 'bg-transparent text-amber-700 hover:text-amber-800'}`}
-            >
-              Upgrade
-            </button>
+          {/* Tabs just below header CTA and controls */}
+          <div className="mt-6">
+            <div className="max-w-6xl mx-auto">
+              <div className={`inline-flex rounded-lg overflow-hidden border ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className={`px-4 py-2 text-sm font-medium ${!showSettings ? (isDark ? 'bg-white/10 text-white' : 'bg-black text-white') : (isDark ? 'bg-transparent text-gray-400' : 'bg-transparent text-gray-600')}`}
+                >
+                  CRM
+                </button>
+                <button
+                  onClick={() => setShowSettings(true)}
+                  className={`px-4 py-2 text-sm font-medium ${showSettings ? (isDark ? 'bg-white/10 text-white' : 'bg-black text-white') : (isDark ? 'bg-transparent text-gray-400' : 'bg-transparent text-gray-600')}`}
+                >
+                  Settings
+                </button>
+                <button
+                  onClick={() => window.open('https://applytrack.pro/upgrade', '_blank')}
+                  className={`px-4 py-2 text-sm font-medium ${isDark ? 'bg-transparent text-amber-400 hover:text-amber-300' : 'bg-transparent text-amber-700 hover:text-amber-800'}`}
+                >
+                  Upgrade
+                </button>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Content Section */}
+        <div className="px-8 py-8">
         {/* Success Popup (user dismissible). Hide during welcome modal */}
         {toast && !showWelcome && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center">
