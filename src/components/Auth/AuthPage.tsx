@@ -23,7 +23,6 @@ export function AuthPage({ onLogin }: AuthPageProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
     password: ''
   });
@@ -87,13 +86,8 @@ export function AuthPage({ onLogin }: AuthPageProps) {
           if (error) {
             setAuthError('Invalid credentials or email not confirmed.');
           } else if (data.session?.user) {
-            // If user metadata lacks name and form has a name, update the profile
-            const currentName = (data.session.user.user_metadata as any)?.name;
-            if (!currentName && formData.name) {
-              await supabase.auth.updateUser({ data: { name: formData.name } });
-            }
             onLogin({
-              name: (data.session.user.user_metadata as any)?.name || formData.name || 'User',
+              name: (data.session.user.user_metadata as any)?.name || (data.session.user.email?.split('@')[0] || 'User'),
               email: data.session.user.email || formData.email,
             });
           }
@@ -101,9 +95,7 @@ export function AuthPage({ onLogin }: AuthPageProps) {
         const { data, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
-          options: {
-            data: { name: formData.name },
-          },
+          options: {},
         });
 
         // If signup immediately returns a session (email confirmations disabled), log in
@@ -123,7 +115,7 @@ export function AuthPage({ onLogin }: AuthPageProps) {
           });
           if (!signInError && signInData.session?.user) {
             onLogin({
-              name: signInData.session.user.user_metadata?.name || formData.name || 'User',
+              name: (signInData.session.user.user_metadata as any)?.name || (signInData.session.user.email?.split('@')[0] || 'User'),
               email: signInData.session.user.email || formData.email,
             });
             return;
@@ -141,12 +133,8 @@ export function AuthPage({ onLogin }: AuthPageProps) {
           password: formData.password,
         });
         if (signInData2?.session?.user) {
-          // Ensure name is saved on profile if provided
-          if (formData.name) {
-            await supabase.auth.updateUser({ data: { name: formData.name } });
-          }
           onLogin({
-            name: signInData2.session.user.user_metadata?.name || formData.name || 'User',
+            name: (signInData2.session.user.user_metadata as any)?.name || (signInData2.session.user.email?.split('@')[0] || 'User'),
             email: signInData2.session.user.email || formData.email,
           });
         } else {
@@ -341,23 +329,7 @@ export function AuthPage({ onLogin }: AuthPageProps) {
 
             {/* Auth Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Your Name
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      className="w-full pl-4 pr-4 py-3 bg-gray-900 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
-                      placeholder="Enter your name"
-                      required
-                    />
-                  </div>
-                </div>
-              )}
+              {/* Name collection moved to onboarding */}
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -442,8 +414,8 @@ export function AuthPage({ onLogin }: AuthPageProps) {
                     const { error } = await supabase.auth.signInWithOAuth({
                       provider: 'google',
                       options: {
-                        scopes: 'https://www.googleapis.com/auth/gmail.readonly',
-                        queryParams: { access_type: 'offline', prompt: 'consent select_account' },
+                        scopes: 'openid email profile',
+                        queryParams: { prompt: 'select_account' },
                         redirectTo: `${window.location.origin}/dashboard`,
                       },
                     });
