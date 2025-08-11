@@ -1,6 +1,13 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import React, { lazy } from 'react';
 import { supabase } from '../lib/supabase';
+import RouteLoader from '../components/Loading/RouteLoader';
+import { RootErrorBoundary } from '../components/ErrorBoundaries/RootErrorBoundary';
+const DashboardLayout = lazy(() => import('./screens/dashboard/DashboardLayout'));
+const CrmRoute = lazy(() => import('./screens/dashboard/CrmRoute'));
+const SettingsRoute = lazy(() => import('./screens/dashboard/SettingsRoute'));
+const UpgradeRoute = lazy(() => import('./screens/dashboard/UpgradeRoute'));
+const ApplicationDetailRoute = lazy(() => import('./screens/dashboard/ApplicationDetailRoute'));
 
 // Lazy pages/components
 const AppDashboard = lazy(() => import('../App'));
@@ -79,43 +86,39 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <RedirectToDashboardOrLogin />,
+    errorElement: <RootErrorBoundary><RouteLoader /></RootErrorBoundary>,
   },
   {
     path: '/login',
-    element: <AuthPageWrapper defaultMode="login" />,
+    element: <React.Suspense fallback={<RouteLoader />}><AuthPageWrapper defaultMode="login" /></React.Suspense>,
   },
   {
     path: '/signup',
-    element: <AuthPageWrapper defaultMode="signup" />,
+    element: <React.Suspense fallback={<RouteLoader />}><AuthPageWrapper defaultMode="signup" /></React.Suspense>,
   },
   {
     path: '/onboarding',
     children: [
       {
         path: 'name-entry',
-        element: (
-          <ProtectedRoute requireOnboarding>
-            <OnboardingName />
-          </ProtectedRoute>
-        ),
+        element: (<ProtectedRoute requireOnboarding><OnboardingName /></ProtectedRoute>),
       },
       {
         path: 'welcome',
-        element: (
-          <ProtectedRoute requireOnboarding>
-            <OnboardingWelcome />
-          </ProtectedRoute>
-        ),
+        element: (<ProtectedRoute requireOnboarding><OnboardingWelcome /></ProtectedRoute>),
       },
     ],
   },
   {
     path: '/dashboard/*',
-    element: (
-      <ProtectedRoute>
-        <AppDashboard />
-      </ProtectedRoute>
-    ),
+    element: (<ProtectedRoute><DashboardLayout /></ProtectedRoute>),
+    children: [
+      { index: true, element: <Navigate to="/dashboard/crm" replace /> },
+      { path: 'crm', element: <CrmRoute /> },
+      { path: 'settings', element: <SettingsRoute /> },
+      { path: 'upgrade', element: <UpgradeRoute /> },
+      { path: 'applications/:id', element: <ApplicationDetailRoute /> },
+    ],
   },
   {
     path: '*',
