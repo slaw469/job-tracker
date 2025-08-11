@@ -23,6 +23,7 @@ interface ApplicationsTableProps {
   onSetApplications?: (applications: JobApplication[]) => void;
   showWelcome?: boolean;
   onWelcomeClose?: () => void;
+  onDeleteApplication?: (id: string) => void;
 }
 
 export function ApplicationsTable({ 
@@ -35,6 +36,7 @@ export function ApplicationsTable({
   onSetApplications,
   showWelcome = false,
   onWelcomeClose
+  onDeleteApplication
 }: ApplicationsTableProps) {
   const { isDark, toggleTheme } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
@@ -363,7 +365,7 @@ export function ApplicationsTable({
                 <button
                   onClick={handleGmailScrape}
                   disabled={isScrapingGmail || !isGmailConnected}
-                  className={`relative group flex items-center gap-4 px-12 py-6 font-semibold text-lg transition-all duration-300 transform ${
+                  className={`relative group flex items-center gap-4 px-14 py-7 font-semibold text-xl transition-all duration-300 transform ${
                     (isScrapingGmail || !isGmailConnected)
                       ? 'bg-white text-gray-400 cursor-not-allowed'
                       : 'bg-white text-gray-900 hover:bg-gray-50 shadow-2xl hover:scale-105'
@@ -376,14 +378,14 @@ export function ApplicationsTable({
                   }}
                 >
                   {isScrapingGmail ? (
-                    <RefreshCw className="w-6 h-6 animate-spin text-blue-500" />
+                    <RefreshCw className="w-7 h-7 animate-spin text-blue-500" />
                   ) : (
-                    <Inbox className="w-6 h-6 text-blue-500" />
+                    <Inbox className="w-7 h-7 text-blue-500" />
                   )}
                   <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent font-bold">
                     {isScrapingGmail ? 'Scanning Gmail...' : (isGmailConnected ? 'Scan Gmail (Last 24hrs)' : 'Connect Gmail to Scan')}
                   </span>
-                  <Clock className="w-5 h-5 text-gray-500" />
+                  <Clock className="w-6 h-6 text-gray-500" />
                   
                   {/* Sparkle effects */}
                   {!isScrapingGmail && (
@@ -903,6 +905,17 @@ export function ApplicationsTable({
                                 <ExternalLink className="w-4 h-4" />
                               </a>
                             )}
+                            <button
+                              onClick={() => onDeleteApplication && onDeleteApplication(application.id)}
+                              className={`p-2 transition-colors duration-200 ${
+                                isDark 
+                                  ? 'bg-red-900/40 text-red-300 hover:bg-red-900/60' 
+                                  : 'bg-red-100 text-red-700 hover:bg-red-200'
+                              }`}
+                              title="Delete Row"
+                            >
+                              <XIcon className="w-4 h-4" />
+                            </button>
                           </div>
                         </td>
                       </tr>

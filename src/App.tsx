@@ -54,6 +54,10 @@ function App() {
     setApplications(prev => [...newApplications, ...prev]);
   };
 
+  const handleDeleteApplication = (id: string) => {
+    setApplications(prev => prev.filter(app => app.id !== id));
+  };
+
   const handleLogin = (userData: User) => {
     setUser(userData);
     // If user has no name yet, open onboarding modal to capture it
@@ -305,6 +309,7 @@ function App() {
         onAddApplication={() => setShowAddModal(true)}
         onGmailScrape={handleGmailScrape}
         onSetApplications={setApplications}
+        onDeleteApplication={handleDeleteApplication}
         user={user}
         onLogout={handleLogout}
         showWelcome={showWelcome}
