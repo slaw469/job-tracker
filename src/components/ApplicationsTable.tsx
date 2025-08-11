@@ -151,14 +151,20 @@ export function ApplicationsTable({
         setStatusText('Please connect Gmail first');
         return;
       }
-      const userRes = await supabase.auth.getUser();
-      const userId = userRes.data?.user?.id;
-      const email = userRes.data?.user?.email;
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      const email = session?.user?.email;
+      const gmailAccessToken = (session as any)?.provider_token;
       if (!userId) {
         setStatusText('Please connect Gmail first.');
         return;
       }
-      await apiTriggerScan(userId ? { user_id: userId, email } : undefined);
+      await apiTriggerScan({
+        user_id: userId,
+        email,
+        gmail_access_token: gmailAccessToken,
+        action: 'scan',
+      });
       // brief delay then pull results
       await new Promise((r) => setTimeout(r, 2000));
       const appsRes = await apiFetchApplications();
