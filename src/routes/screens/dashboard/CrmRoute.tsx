@@ -1,9 +1,6 @@
-import React from 'react';
-import App from '../../../App';
+// src/routes/screens/dashboard/CrmRoute.tsx
+import CrmScreen from '/Users/mohammad/Downloads/job-tracker/src/components/CrmScreen.tsx';
 
-// For phase 2, we reuse the existing App which renders the CRM experience.
-// In a later phase, we can extract the inner CRM content into this route directly.
 export default function CrmRoute() {
-  return <App />;
+  return <CrmScreen />; // ✅ no Router/RouterProvider here
 }
-

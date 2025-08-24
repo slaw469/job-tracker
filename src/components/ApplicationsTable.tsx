@@ -6,7 +6,8 @@ import {
   Search, Eye, ExternalLink, Calendar, Building2, Bot, Plus, Check, X as XIcon, Mail, Settings, Sun, Moon, User, RefreshCw, Inbox, Clock, LogOut
 } from 'lucide-react';
 import { fetchApplications as apiFetchApplications, triggerScan as apiTriggerScan } from '../api/n8n';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+// Replaced Supabase with Firebase for authentication
+import { firebaseAuth } from '../lib/firebaseAuth';
 
 interface User {
   name: string;
@@ -49,14 +50,6 @@ export function ApplicationsTable({
   const [isGmailConnected, setIsGmailConnected] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Debug popup lifecycle
-  useEffect(() => {
-    if (toast) {
-      // eslint-disable-next-line no-console
-      console.log('🎉 POPUP COMPONENT RENDERED');
-    }
-  }, [toast]);
-
   // Determine Gmail connection on load and keep in sync
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -71,8 +64,8 @@ export function ApplicationsTable({
     };
 
     const init = async () => {
-      if (!supabase) return;
-      const { data: { session } } = await supabase.auth.getSession();
+      // Using Firebase instead of Supabase for session management
+      const { data: { session } } = await firebaseAuth.getSession();
       // If we returned from a Gmail auth redirect with marker, persist connection flag
       try {
         const params = new URLSearchParams(window.location.search);
@@ -99,9 +92,8 @@ export function ApplicationsTable({
         sessionStorage.removeItem(connectInitiatedKey);
       }
 
-      const { data } = supabase.auth.onAuthStateChange((event, sess) => {
-        // eslint-disable-next-line no-console
-        console.log('📡 Auth listener event:', event, 'session?', !!sess, 'provider:', sess?.user?.app_metadata?.provider);
+      // Set up Firebase auth state listener instead of Supabase
+      const { data } = firebaseAuth.onAuthStateChange((event: string, sess: any) => {
         if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
           const email = sess?.user?.email?.toLowerCase();
           const initiated2 = sessionStorage.getItem(connectInitiatedKey) === '1';
@@ -143,21 +135,21 @@ export function ApplicationsTable({
     try {
       setIsScrapingGmail(true);
       setStatusText('Scanning your inbox...');
-      if (!supabase) {
-        setStatusText('Supabase not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then restart.');
-        return;
-      }
+      
       if (!isGmailConnected) {
         setStatusText('Please connect Gmail first');
         return;
       }
-      const userRes = await supabase.auth.getUser();
-      const userId = userRes.data?.user?.id;
-      const email = userRes.data?.user?.email;
+      
+      // Using Firebase instead of Supabase to get user information
+      const { data: { session } } = await firebaseAuth.getSession();
+      const userId = session?.user?.id;
+      const email = session?.user?.email;
       if (!userId) {
         setStatusText('Please connect Gmail first.');
         return;
       }
+      
       await apiTriggerScan(userId ? { user_id: userId, email } : undefined);
       // brief delay then pull results
       await new Promise((r) => setTimeout(r, 2000));
@@ -189,19 +181,13 @@ export function ApplicationsTable({
   };
 
   const handleConnectGmailClick = async () => {
-    if (!isSupabaseConfigured) {
-      setStatusText('Supabase not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then restart dev server.');
-      return;
-    }
-    if (!supabase) {
-      setStatusText('Supabase client not initialized.');
-      return;
-    }
     // Mark that the Gmail connect was intentionally initiated from CRM
     try {
       sessionStorage.setItem('gmail_connect_initiated', '1');
     } catch {}
-    const { error } = await supabase.auth.signInWithOAuth({
+    
+    // Use Firebase Google OAuth with Gmail scope instead of Supabase
+    const { error } = await firebaseAuth.signInWithOAuth({
       provider: 'google',
       options: {
         scopes: 'https://www.googleapis.com/auth/gmail.readonly',
@@ -213,6 +199,7 @@ export function ApplicationsTable({
         redirectTo: `${window.location.origin}/dashboard`,
       },
     });
+    
     if (error) {
       setStatusText(`OAuth error: ${error.message}`);
     } else {
@@ -542,8 +529,6 @@ export function ApplicationsTable({
             <div
               className="absolute inset-0 bg-black/50"
               onClick={() => {
-                // eslint-disable-next-line no-console
-                console.log('🎉 SUCCESS POPUP DISMISSED (backdrop)');
                 setToast(null);
               }}
             />
@@ -565,8 +550,6 @@ export function ApplicationsTable({
                 <div className="mt-4 flex justify-end gap-2">
                   <button
                     onClick={() => {
-                      // eslint-disable-next-line no-console
-                      console.log('🎉 SUCCESS POPUP DISMISSED (button)');
                       setToast(null);
                     }}
                     className={`${
@@ -578,8 +561,6 @@ export function ApplicationsTable({
                 </div>
                 <button
                   onClick={() => {
-                    // eslint-disable-next-line no-console
-                    console.log('🎉 SUCCESS POPUP DISMISSED (close)');
                     setToast(null);
                   }}
                   className={`absolute top-2 right-2 ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`}

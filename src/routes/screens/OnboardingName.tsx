@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { supabase } from '../../lib/supabase';
+// Replaced Supabase with Firebase for authentication
+import { firebaseAuth } from '../../lib/firebaseAuth';
 import { useNavigate } from 'react-router-dom';
 
 export default function OnboardingName() {
@@ -11,7 +12,8 @@ export default function OnboardingName() {
     e.preventDefault();
     setError(null);
     try {
-      const session = (await supabase?.auth.getSession())?.data.session;
+      // Using Firebase instead of Supabase for session management
+      const { data: { session } } = await firebaseAuth.getSession();
       if (!session) {
         navigate('/login');
         return;
@@ -20,7 +22,8 @@ export default function OnboardingName() {
         setError('Please enter your name');
         return;
       }
-      await supabase?.auth.updateUser({ data: { name: name.trim() } });
+      // Update user profile in Firebase
+      await firebaseAuth.updateUser({ data: { name: name.trim() } });
       navigate('/onboarding/welcome');
     } catch (e: any) {
       setError(e?.message || 'Failed to save name');

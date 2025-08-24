@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+// Replaced Supabase with Firebase for authentication
+import { firebaseAuth } from '../../lib/firebaseAuth';
 
 export default function OnboardingWelcome() {
   const navigate = useNavigate();
@@ -8,18 +9,20 @@ export default function OnboardingWelcome() {
 
   React.useEffect(() => {
     (async () => {
-      const session = (await supabase?.auth.getSession())?.data.session;
+      // Using Firebase instead of Supabase for session management
+      const { data: { session } } = await firebaseAuth.getSession();
       if (!session) {
         navigate('/login');
         return;
       }
-      const name = (session.user.user_metadata as any)?.name || 'Friend';
+      const name = session.user.user_metadata?.name || 'Friend';
       setUserName(name);
     })();
   }, [navigate]);
 
   const handleContinue = async () => {
-    const session = (await supabase?.auth.getSession())?.data.session;
+    // Get user email from Firebase session instead of Supabase
+    const { data: { session } } = await firebaseAuth.getSession();
     const email = session?.user?.email || '';
     try {
       if (email) localStorage.setItem(`onboarding_complete:${email.toLowerCase()}`, '1');
